@@ -23,6 +23,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
+const formSchema = z.object({
+  nome: z.string().min(1, "Nome é obrigatório"),
+  codigo: z.string().min(1, "Código é obrigatório"),
+  categoria: z.string().min(1, "Categoria é obrigatória"),
+  quantidade: z.string().min(1, "Quantidade é obrigatória"),
+  estoqueMinimo: z.string().min(1, "Estoque mínimo é obrigatório"),
+  preco: z.string().min(1, "Preço é obrigatório"),
+});
 
 interface Produto {
   id: string;
@@ -77,13 +97,36 @@ const Estoque = () => {
   const [produtos, setProdutos] = useState<Produto[]>(mockData);
   const [open, setOpen] = useState(false);
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      nome: "",
+      codigo: "",
+      categoria: "",
+      quantidade: "",
+      estoqueMinimo: "",
+      preco: "",
+    },
+  });
+
   const isEstoqueBaixo = (quantidade: number, minimo: number) => {
     return quantidade < minimo;
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = (values: z.infer<typeof formSchema>) => {
+    const novoProduto: Produto = {
+      id: String(produtos.length + 1),
+      nome: values.nome,
+      codigo: values.codigo,
+      categoria: values.categoria,
+      quantidade: parseInt(values.quantidade),
+      estoqueMinimo: parseInt(values.estoqueMinimo),
+      preco: parseFloat(values.preco),
+    };
+    
+    setProdutos([novoProduto, ...produtos]);
     toast.success("Produto adicionado com sucesso!");
+    form.reset();
     setOpen(false);
   };
 
@@ -109,41 +152,97 @@ const Estoque = () => {
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <form onSubmit={handleSubmit}>
-              <DialogHeader>
-                <DialogTitle>Adicionar Produto</DialogTitle>
-                <DialogDescription>Adicione um novo produto ao estoque</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="nome">Nome do Produto</Label>
-                  <Input id="nome" placeholder="Nome do produto" required />
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleSubmit)}>
+                <DialogHeader>
+                  <DialogTitle>Adicionar Produto</DialogTitle>
+                  <DialogDescription>Adicione um novo produto ao estoque</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <FormField
+                    control={form.control}
+                    name="nome"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do Produto</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome do produto" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="codigo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Código</FormLabel>
+                        <FormControl>
+                          <Input placeholder="PRD-XXX" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="categoria"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Categoria</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Categoria" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="quantidade"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantidade</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="0" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="estoqueMinimo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Estoque Mínimo</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="0" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="preco"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Preço</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" placeholder="0,00" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="codigo">Código</Label>
-                  <Input id="codigo" placeholder="PRD-XXX" required />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="categoria">Categoria</Label>
-                  <Input id="categoria" placeholder="Categoria" required />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="quantidade">Quantidade</Label>
-                  <Input id="quantidade" type="number" placeholder="0" required />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="estoqueMinimo">Estoque Mínimo</Label>
-                  <Input id="estoqueMinimo" type="number" placeholder="0" required />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="preco">Preço</Label>
-                  <Input id="preco" type="number" step="0.01" placeholder="0,00" required />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit">Adicionar</Button>
-              </DialogFooter>
-            </form>
+                <DialogFooter>
+                  <Button type="submit">Adicionar</Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
