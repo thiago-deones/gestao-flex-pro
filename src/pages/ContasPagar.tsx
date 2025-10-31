@@ -23,6 +23,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
+const formSchema = z.object({
+  fornecedor: z.string().min(1, "Fornecedor é obrigatório"),
+  descricao: z.string().min(1, "Descrição é obrigatória"),
+  valor: z.string().min(1, "Valor é obrigatório"),
+  vencimento: z.string().min(1, "Data de vencimento é obrigatória"),
+});
 
 interface ContaPagar {
   id: string;
@@ -72,6 +90,16 @@ const ContasPagar = () => {
   const [contas, setContas] = useState<ContaPagar[]>(mockData);
   const [open, setOpen] = useState(false);
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      fornecedor: "",
+      descricao: "",
+      valor: "",
+      vencimento: "",
+    },
+  });
+
   const getStatusBadge = (status: string) => {
     const variants = {
       pendente: "default",
@@ -88,9 +116,19 @@ const ContasPagar = () => {
     return <Badge variant={variants[status as keyof typeof variants]}>{labels[status as keyof typeof labels]}</Badge>;
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = (values: z.infer<typeof formSchema>) => {
+    const novaConta: ContaPagar = {
+      id: String(contas.length + 1),
+      fornecedor: values.fornecedor,
+      descricao: values.descricao,
+      valor: parseFloat(values.valor),
+      vencimento: values.vencimento,
+      status: "pendente",
+    };
+    
+    setContas([novaConta, ...contas]);
     toast.success("Conta a pagar adicionada com sucesso!");
+    form.reset();
     setOpen(false);
   };
 
@@ -120,33 +158,71 @@ const ContasPagar = () => {
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <form onSubmit={handleSubmit}>
-              <DialogHeader>
-                <DialogTitle>Adicionar Conta a Pagar</DialogTitle>
-                <DialogDescription>Adicione uma nova conta a pagar ao sistema</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="fornecedor">Fornecedor</Label>
-                  <Input id="fornecedor" placeholder="Nome do fornecedor" required />
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleSubmit)}>
+                <DialogHeader>
+                  <DialogTitle>Adicionar Conta a Pagar</DialogTitle>
+                  <DialogDescription>Adicione uma nova conta a pagar ao sistema</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <FormField
+                    control={form.control}
+                    name="fornecedor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fornecedor</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome do fornecedor" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="descricao"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Descrição</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Descrição da conta" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="valor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Valor</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" placeholder="0,00" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="vencimento"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data de Vencimento</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="descricao">Descrição</Label>
-                  <Input id="descricao" placeholder="Descrição da conta" required />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="valor">Valor</Label>
-                  <Input id="valor" type="number" step="0.01" placeholder="0,00" required />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="vencimento">Data de Vencimento</Label>
-                  <Input id="vencimento" type="date" required />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit">Adicionar</Button>
-              </DialogFooter>
-            </form>
+                <DialogFooter>
+                  <Button type="submit">Adicionar</Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
