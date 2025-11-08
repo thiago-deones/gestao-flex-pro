@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -87,8 +87,17 @@ const mockData: ContaReceber[] = [
 ];
 
 const ContasReceber = () => {
-  const [contas, setContas] = useState<ContaReceber[]>(mockData);
+  const [contas, setContas] = useState<ContaReceber[]>(() => {
+    const savedContas = localStorage.getItem('contasReceber');
+    return savedContas ? JSON.parse(savedContas) : mockData;
+  });
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Salva as contas no localStorage sempre que houver mudanças
+  useEffect(() => {
+    localStorage.setItem('contasReceber', JSON.stringify(contas));
+  }, [contas]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -116,18 +125,51 @@ const ContasReceber = () => {
     return <Badge variant={variants[status as keyof typeof variants]}>{labels[status as keyof typeof labels]}</Badge>;
   };
 
+  const handleEdit = (conta: ContaReceber) => {
+    setEditingId(conta.id);
+    form.reset({
+      cliente: conta.cliente,
+      descricao: conta.descricao,
+      valor: String(conta.valor),
+      vencimento: conta.vencimento,
+    });
+    setOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm("Tem certeza que deseja excluir esta conta?")) {
+      setContas(contas.filter((conta) => conta.id !== id));
+      toast.success("Conta excluída com sucesso!");
+    }
+  };
+
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    const novaConta: ContaReceber = {
-      id: String(contas.length + 1),
-      cliente: values.cliente,
-      descricao: values.descricao,
-      valor: parseFloat(values.valor),
-      vencimento: values.vencimento,
-      status: "pendente",
-    };
-    
-    setContas([novaConta, ...contas]);
-    toast.success("Conta a receber adicionada com sucesso!");
+    if (editingId) {
+      setContas(contas.map((conta) =>
+        conta.id === editingId
+          ? {
+              ...conta,
+              cliente: values.cliente,
+              descricao: values.descricao,
+              valor: parseFloat(values.valor),
+              vencimento: values.vencimento,
+            }
+          : conta
+      ));
+      toast.success("Conta atualizada com sucesso!");
+      setEditingId(null);
+    } else {
+      const novaConta: ContaReceber = {
+        id: String(contas.length + 1),
+        cliente: values.cliente,
+        descricao: values.descricao,
+        valor: parseFloat(values.valor),
+        vencimento: values.vencimento,
+        status: "pendente",
+      };
+      setContas([novaConta, ...contas]);
+      toast.success("Conta a receber adicionada com sucesso!");
+    }
     form.reset();
     setOpen(false);
   };
@@ -240,6 +282,7 @@ const ContasReceber = () => {
                 <TableHead>Valor</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -250,6 +293,16 @@ const ContasReceber = () => {
                   <TableCell>{formatCurrency(conta.valor)}</TableCell>
                   <TableCell>{formatDate(conta.vencimento)}</TableCell>
                   <TableCell>{getStatusBadge(conta.status)}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(conta)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(conta.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

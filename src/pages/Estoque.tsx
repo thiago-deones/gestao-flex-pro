@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, AlertCircle } from "lucide-react";
+import { Plus, AlertCircle, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -93,9 +93,15 @@ const mockData: Produto[] = [
   },
 ];
 
+const STORAGE_KEY = "gestao-flex-pro:produtos";
+
 const Estoque = () => {
-  const [produtos, setProdutos] = useState<Produto[]>(mockData);
+  const [produtos, setProdutos] = useState<Produto[]>(() => {
+    const storedProdutos = localStorage.getItem(STORAGE_KEY);
+    return storedProdutos ? JSON.parse(storedProdutos) : mockData;
+  });
   const [open, setOpen] = useState(false);
+  const [produtoParaEditar, setProdutoParaEditar] = useState<Produto | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -114,20 +120,62 @@ const Estoque = () => {
   };
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    const novoProduto: Produto = {
-      id: String(produtos.length + 1),
-      nome: values.nome,
-      codigo: values.codigo,
-      categoria: values.categoria,
-      quantidade: parseInt(values.quantidade),
-      estoqueMinimo: parseInt(values.estoqueMinimo),
-      preco: parseFloat(values.preco),
-    };
-    
-    setProdutos([novoProduto, ...produtos]);
-    toast.success("Produto adicionado com sucesso!");
+    if (produtoParaEditar) {
+      const produtosAtualizados = produtos.map((produto) =>
+        produto.id === produtoParaEditar.id
+          ? {
+              ...produto,
+              nome: values.nome,
+              codigo: values.codigo,
+              categoria: values.categoria,
+              quantidade: parseInt(values.quantidade),
+              estoqueMinimo: parseInt(values.estoqueMinimo),
+              preco: parseFloat(values.preco),
+            }
+          : produto
+      );
+      const newProdutos = produtosAtualizados;
+      setProdutos(newProdutos);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newProdutos));
+      toast.success("Produto atualizado com sucesso!");
+    } else {
+      const novoProduto: Produto = {
+        id: String(produtos.length + 1),
+        nome: values.nome,
+        codigo: values.codigo,
+        categoria: values.categoria,
+        quantidade: parseInt(values.quantidade),
+        estoqueMinimo: parseInt(values.estoqueMinimo),
+        preco: parseFloat(values.preco),
+      };
+      const newProdutos = [novoProduto, ...produtos];
+      setProdutos(newProdutos);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newProdutos));
+      toast.success("Produto adicionado com sucesso!");
+    }
     form.reset();
     setOpen(false);
+    setProdutoParaEditar(null);
+  };
+
+  const handleDelete = (id: string) => {
+    const produtosAtualizados = produtos.filter((produto) => produto.id !== id);
+    setProdutos(produtosAtualizados);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(produtosAtualizados));
+    toast.success("Produto excluído com sucesso!");
+  };
+
+  const handleEdit = (produto: Produto) => {
+    setProdutoParaEditar(produto);
+    form.reset({
+      nome: produto.nome,
+      codigo: produto.codigo,
+      categoria: produto.categoria,
+      quantidade: String(produto.quantidade),
+      estoqueMinimo: String(produto.estoqueMinimo),
+      preco: String(produto.preco),
+    });
+    setOpen(true);
   };
 
   const formatCurrency = (value: number) => {
@@ -144,7 +192,16 @@ const Estoque = () => {
           <h2 className="text-3xl font-bold tracking-tight">Gestão de Estoque</h2>
           <p className="text-muted-foreground">Gerencie seus produtos e estoque</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(isOpen) => {
+            setOpen(isOpen);
+            if (!isOpen) {
+              setProdutoParaEditar(null);
+              form.reset();
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -155,8 +212,14 @@ const Estoque = () => {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)}>
                 <DialogHeader>
-                  <DialogTitle>Adicionar Produto</DialogTitle>
-                  <DialogDescription>Adicione um novo produto ao estoque</DialogDescription>
+                  <DialogTitle>
+                    {produtoParaEditar ? "Editar Produto" : "Adicionar Produto"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {produtoParaEditar
+                      ? "Edite os dados do produto"
+                      : "Adicione um novo produto ao estoque"}
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <FormField
@@ -262,6 +325,7 @@ const Estoque = () => {
                 <TableHead>Estoque Mínimo</TableHead>
                 <TableHead>Preço</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -282,6 +346,24 @@ const Estoque = () => {
                     ) : (
                       <Badge variant="secondary">Normal</Badge>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(produto)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(produto.id)}
+                      >
+                        Excluir
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
