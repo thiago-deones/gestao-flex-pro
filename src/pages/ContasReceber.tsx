@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -141,6 +142,17 @@ const ContasReceber = () => {
       setContas(contas.filter((conta) => conta.id !== id));
       toast.success("Conta excluída com sucesso!");
     }
+  };
+
+  const handleToggleRecebido = (id: string) => {
+    setContas(contas.map((conta) => {
+      if (conta.id === id) {
+        const novoStatus = conta.status === "recebido" ? "pendente" : "recebido";
+        return { ...conta, status: novoStatus };
+      }
+      return conta;
+    }));
+    toast.success("Status atualizado com sucesso!");
   };
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
@@ -282,6 +294,7 @@ const ContasReceber = () => {
                 <TableHead>Valor</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Recebido</TableHead>
                 <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -293,6 +306,12 @@ const ContasReceber = () => {
                   <TableCell>{formatCurrency(conta.valor)}</TableCell>
                   <TableCell>{formatDate(conta.vencimento)}</TableCell>
                   <TableCell>{getStatusBadge(conta.status)}</TableCell>
+                  <TableCell>
+                    <Checkbox
+                      checked={conta.status === "recebido"}
+                      onCheckedChange={() => handleToggleRecebido(conta.id)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(conta)}>
