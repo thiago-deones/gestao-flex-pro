@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, AlertCircle, Pencil, Trash2 } from "lucide-react";
+import { Plus, Minus, AlertCircle, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -102,6 +102,7 @@ const Estoque = () => {
   });
   const [open, setOpen] = useState(false);
   const [produtoParaEditar, setProdutoParaEditar] = useState<Produto | null>(null);
+  const [quantidadesEditando, setQuantidadesEditando] = useState<Record<string, string>>({});
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -120,6 +121,9 @@ const Estoque = () => {
   };
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
+    const quantidade = parseInt(values.quantidade);
+    const estoqueMinimo = parseInt(values.estoqueMinimo);
+    
     if (produtoParaEditar) {
       const produtosAtualizados = produtos.map((produto) =>
         produto.id === produtoParaEditar.id
@@ -128,12 +132,22 @@ const Estoque = () => {
               nome: values.nome,
               codigo: values.codigo,
               categoria: values.categoria,
-              quantidade: parseInt(values.quantidade),
-              estoqueMinimo: parseInt(values.estoqueMinimo),
+              quantidade: quantidade,
+              estoqueMinimo: estoqueMinimo,
               preco: parseFloat(values.preco),
             }
           : produto
       );
+      const produtoAtualizado = produtosAtualizados.find((p) => p.id === produtoParaEditar.id);
+      // Verifica se ficou com estoque baixo
+      if (produtoAtualizado && quantidade < estoqueMinimo) {
+        setTimeout(() => {
+          toast.error(`⚠️ Estoque baixo: ${values.nome}`, {
+            description: `Quantidade atual: ${quantidade} (mínimo: ${estoqueMinimo})`,
+            duration: 5000,
+          });
+        }, 100);
+      }
       const newProdutos = produtosAtualizados;
       setProdutos(newProdutos);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newProdutos));
@@ -144,10 +158,19 @@ const Estoque = () => {
         nome: values.nome,
         codigo: values.codigo,
         categoria: values.categoria,
-        quantidade: parseInt(values.quantidade),
-        estoqueMinimo: parseInt(values.estoqueMinimo),
+        quantidade: quantidade,
+        estoqueMinimo: estoqueMinimo,
         preco: parseFloat(values.preco),
       };
+      // Verifica se está com estoque baixo ao criar
+      if (quantidade < estoqueMinimo) {
+        setTimeout(() => {
+          toast.error(`⚠️ Estoque baixo: ${values.nome}`, {
+            description: `Quantidade atual: ${quantidade} (mínimo: ${estoqueMinimo})`,
+            duration: 5000,
+          });
+        }, 100);
+      }
       const newProdutos = [novoProduto, ...produtos];
       setProdutos(newProdutos);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newProdutos));
@@ -176,6 +199,53 @@ const Estoque = () => {
       preco: String(produto.preco),
     });
     setOpen(true);
+  };
+
+  const handleAjustarQuantidade = (id: string, delta: number) => {
+    const produtosAtualizados = produtos.map((produto) => {
+      if (produto.id === id) {
+        const novaQuantidade = Math.max(0, produto.quantidade + delta);
+        // Verifica se ficou com estoque baixo
+        if (novaQuantidade < produto.estoqueMinimo && produto.quantidade >= produto.estoqueMinimo) {
+          setTimeout(() => {
+            toast.error(`⚠️ Estoque baixo: ${produto.nome}`, {
+              description: `Quantidade atual: ${novaQuantidade} (mínimo: ${produto.estoqueMinimo})`,
+              duration: 5000,
+            });
+          }, 100);
+        }
+        return { ...produto, quantidade: novaQuantidade };
+      }
+      return produto;
+    });
+    setProdutos(produtosAtualizados);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(produtosAtualizados));
+    toast.success("Quantidade atualizada!");
+  };
+
+  const handleQuantidadeChange = (id: string, novaQuantidade: number) => {
+    if (novaQuantidade < 0) {
+      toast.error("A quantidade não pode ser negativa");
+      return;
+    }
+    const produtosAtualizados = produtos.map((produto) => {
+      if (produto.id === id) {
+        // Verifica se ficou com estoque baixo
+        if (novaQuantidade < produto.estoqueMinimo && produto.quantidade >= produto.estoqueMinimo) {
+          setTimeout(() => {
+            toast.error(`⚠️ Estoque baixo: ${produto.nome}`, {
+              description: `Quantidade atual: ${novaQuantidade} (mínimo: ${produto.estoqueMinimo})`,
+              duration: 5000,
+            });
+          }, 100);
+        }
+        return { ...produto, quantidade: novaQuantidade };
+      }
+      return produto;
+    });
+    setProdutos(produtosAtualizados);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(produtosAtualizados));
+    toast.success("Quantidade atualizada!");
   };
 
   const formatCurrency = (value: number) => {
@@ -334,7 +404,51 @@ const Estoque = () => {
                   <TableCell className="font-medium">{produto.codigo}</TableCell>
                   <TableCell>{produto.nome}</TableCell>
                   <TableCell>{produto.categoria}</TableCell>
-                  <TableCell>{produto.quantidade}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => handleAjustarQuantidade(produto.id, -1)}
+                        disabled={produto.quantidade === 0}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={quantidadesEditando[produto.id] ?? produto.quantidade}
+                        onChange={(e) => {
+                          setQuantidadesEditando({
+                            ...quantidadesEditando,
+                            [produto.id]: e.target.value,
+                          });
+                        }}
+                        onBlur={(e) => {
+                          const valor = parseInt(e.target.value) || 0;
+                          handleQuantidadeChange(produto.id, valor);
+                          const novasQuantidades = { ...quantidadesEditando };
+                          delete novasQuantidades[produto.id];
+                          setQuantidadesEditando(novasQuantidades);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.currentTarget.blur();
+                          }
+                        }}
+                        className="w-20 text-center"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => handleAjustarQuantidade(produto.id, 1)}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </TableCell>
                   <TableCell>{produto.estoqueMinimo}</TableCell>
                   <TableCell>{formatCurrency(produto.preco)}</TableCell>
                   <TableCell>
