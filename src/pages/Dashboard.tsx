@@ -7,9 +7,11 @@ import {
   Package,
   AlertCircle,
   Calendar,
+  HelpCircle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import HelpModal from "@/components/HelpModal";
 
 interface ContaReceber {
   id: string;
@@ -59,6 +61,7 @@ const Dashboard = () => {
   const [contasPagar, setContasPagar] = useState<ContaPagar[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
+  const [helpModalOpen, setHelpModalOpen] = useState(false);
 
   useEffect(() => {
     const loadData = () => {
@@ -256,7 +259,18 @@ const Dashboard = () => {
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
           <p className="text-muted-foreground">Visão geral do seu negócio</p>
         </div>
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={() => setHelpModalOpen(true)}
+          className="gap-2"
+        >
+          <HelpCircle className="h-5 w-5" />
+          Preciso de Ajuda
+        </Button>
       </div>
+
+      <HelpModal open={helpModalOpen} onOpenChange={setHelpModalOpen} />
 
       {/* Cards de Estatísticas Principais */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
